@@ -1,28 +1,13 @@
 using Beamlines
-include("booster_conversions.jl")
 include("booster_lattice.jl")
+include("booster_conversions.jl")
+include("booster_setting.jl")
 
 booster = Beamline(
-    BOOSTER;
+    build_booster_lattice();
     species_ref=Species("proton"),
-    p_over_q_ref=reference_rigidity_expression(),
+    p_over_q_ref=1.0,
 )
 
 
-ele_index = Dict(getproperty.(booster.line, :name) .=> getproperty.(booster.line, :beamline_index))
-
-
-for ele in vcat(booster.line)
-    if ele.kind == "SBend"
-        ele.x1_limit = -0.08
-        ele.x2_limit =  0.08
-        ele.y1_limit = -0.033
-        ele.y2_limit =  0.033
-        ele.aperture_shape = ApertureShape.Rectangular
-    elseif (ele.name != "SPTMD3") && (ele.kind in ["Drift", "Quadrupole", "Sextupole"] || ele.name == "SPTMD6")
-        ele.x1_limit = -0.0742
-        ele.x2_limit =  0.0742
-        ele.y1_limit = -0.0742
-        ele.y2_limit =  0.0742
-    end
-end
+#set_booster_apertures!(booster)
