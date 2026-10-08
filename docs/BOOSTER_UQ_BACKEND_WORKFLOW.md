@@ -9,17 +9,17 @@ and reduction. The public interface and deployment recommendations are in
 
 | File | Responsibility |
 |---|---|
-| [`booster_batched_uq.jl`](../booster_batched_uq.jl) | Defines the CPU module, exports the public API, and includes the CPU implementation files |
-| [`booster_uq_preparation.jl`](../booster_uq_preparation.jl) | Compiles operating points, observations, and noise into `PreparedBoosterBatch` |
-| [`booster_uq_workspaces.jl`](../booster_uq_workspaces.jl) | Defines sensitivity options, CPU problem types, persistent primal/JVP storage, lattice construction, and CPU backend constructors |
-| [`booster_uq_orbit.jl`](../booster_uq_orbit.jl) | Supplies common tracking, batched references, CPU SciBmad orbit integration, and BPM sampling |
-| [`booster_scibmad_reference.jl`](../booster_scibmad_reference.jl) | Specializes SciBmad residual construction so batched rigidity and reference time reach `Bunch` correctly |
-| [`booster_uq_inference.jl`](../booster_uq_inference.jl) | Implements the shared evaluation skeleton, CPU likelihood, implicit gradient, ChainRules rules, and Turing model |
-| [`cuda/booster_batched_uq_cuda.jl`](../cuda/booster_batched_uq_cuda.jl) | Defines CUDA problem storage, device staging and reductions, CUDA methods for the generic API, status handling, and compatibility aliases |
-| [`cuda/booster_scibmad_cuda.jl`](../cuda/booster_scibmad_cuda.jl) | Selects the CUDA orbit implementation by precision and extracts SciBmad's sparse `I-R` layout on device |
-| [`booster_gpu_common.jl`](../booster_gpu_common.jl) | Shared Metal/CUDA kernels for the custom orbit path, lane-local linear solves, parameter seeding, implicit response, and factor reductions |
-| [`metal/booster_batched_uq_metal.jl`](../metal/booster_batched_uq_metal.jl) | Experimental Metal frontend |
-| [`metal/booster_metal_device.jl`](../metal/booster_metal_device.jl) | Metal-specific BeamTracking compatibility and device methods |
+| [`src/booster_batched_uq.jl`](../src/booster_batched_uq.jl) | Defines the CPU module, exports the public API, and includes the CPU implementation files |
+| [`src/booster_uq_preparation.jl`](../src/booster_uq_preparation.jl) | Compiles operating points, observations, and noise into `PreparedBoosterBatch` |
+| [`src/booster_uq_workspaces.jl`](../src/booster_uq_workspaces.jl) | Defines sensitivity options, CPU problem types, persistent primal/JVP storage, lattice construction, and CPU backend constructors |
+| [`src/booster_uq_orbit.jl`](../src/booster_uq_orbit.jl) | Supplies common tracking, batched references, CPU SciBmad orbit integration, and BPM sampling |
+| [`src/booster_scibmad_reference.jl`](../src/booster_scibmad_reference.jl) | Specializes SciBmad residual construction so batched rigidity and reference time reach `Bunch` correctly |
+| [`src/booster_uq_inference.jl`](../src/booster_uq_inference.jl) | Implements the shared evaluation skeleton, CPU likelihood, implicit gradient, ChainRules rules, and Turing model |
+| [`src/cuda/booster_batched_uq_cuda.jl`](../src/cuda/booster_batched_uq_cuda.jl) | Defines CUDA problem storage, device staging and reductions, CUDA methods for the generic API, status handling, and compatibility aliases |
+| [`src/cuda/booster_scibmad_cuda.jl`](../src/cuda/booster_scibmad_cuda.jl) | Selects the CUDA orbit implementation by precision and extracts SciBmad's sparse `I-R` layout on device |
+| [`src/booster_gpu_common.jl`](../src/booster_gpu_common.jl) | Shared Metal/CUDA kernels for the custom orbit path, lane-local linear solves, parameter seeding, implicit response, and factor reductions |
+| [`src/metal/booster_batched_uq_metal.jl`](../src/metal/booster_batched_uq_metal.jl) | Experimental Metal frontend |
+| [`src/metal/booster_metal_device.jl`](../src/metal/booster_metal_device.jl) | Metal-specific BeamTracking compatibility and device methods |
 | [`tests/`](../tests/) | CUDA and Metal validation suites |
 | [`benchmarks/`](../benchmarks/) | CPU, CUDA, and Metal benchmark programs, runners, plots, and reports |
 
@@ -49,7 +49,7 @@ Dispatch therefore selects the backend at the operation boundary:
 | Result | CPU scalar/vector | Device arrays for device input; copied host values for host input |
 
 The `cuda_*` operation names at the bottom of
-`cuda/booster_batched_uq_cuda.jl` are constants bound to these generic functions.
+`src/cuda/booster_batched_uq_cuda.jl` are constants bound to these generic functions.
 They do not contain separate likelihood or gradient implementations.
 
 The current nested-module arrangement is a source-tree loading mechanism, not
@@ -135,7 +135,7 @@ Corrector columns use `CORRECTOR_NAMES = (H_CORRECTOR_NAMES...,
 V_CORRECTOR_NAMES...)`. Every horizontal column, including `DHCD6` and
 `DHCF6`, is installed as a normal integrated dipole strength. Every vertical
 column is installed as a skew integrated dipole strength. Scalar lattice
-configuration in `booster_lattice/booster_setting.jl` uses the same complete
+configuration in `src/booster_lattice/booster_setting.jl` uses the same complete
 mapping.
 
 ## 6. Shared evaluation skeleton
@@ -212,7 +212,7 @@ for all experiment rows. SciBmad defines its residual as `x - M(x)`, so the
 returned residual Jacobian is already `I-R`. The code copies its sparse values
 into `fixed_point_lhs[lane,4,4]`.
 
-`booster_scibmad_reference.jl` fixes a general reference-construction issue:
+`src/booster_scibmad_reference.jl` fixes a general reference-construction issue:
 SciBmad's default residual constructs a `Bunch` with scalar reference fields,
 while this lattice has lane-dependent `BatchParam` rigidity. The specialized
 residual constructs the `Bunch` using `_reference(lattice, cache)`, including a
@@ -232,7 +232,7 @@ and state remain on the GPU, while Julia retains control of the iteration.
 ### CUDA Float32
 
 Float32 currently dispatches to `_solve_device_orbit!` in
-`booster_gpu_common.jl`. It seeds four coordinate duals, tracks one turn,
+`src/booster_gpu_common.jl`. It seeds four coordinate duals, tracks one turn,
 constructs each lane's residual and `I-R`, solves a `4 × 4` Newton update with
 the KernelAbstractions `_row_solve!` kernel, and records per-lane convergence.
 This path is experimental; production CUDA currently uses Float64 and SciBmad.
@@ -333,7 +333,7 @@ change end-to-end performance.
 Use the following order when locating a failure:
 
 1. **Input or calibration:** inspect `prepare_booster_batch` and
-   `booster_lattice/booster_conversions.jl`.
+   `src/booster_lattice/booster_conversions.jl`.
 2. **Wrong magnet value:** inspect `quad_active`, the prepared base column, and
    `_prepare_factors!`.
 3. **Closed-orbit failure:** inspect `device_status`, SciBmad return codes,
@@ -373,16 +373,16 @@ small part of the improvement from batched execution.
 
 ## 15. Experimental Metal backend
 
-`metal/booster_batched_uq_metal.jl` supplies the experimental Metal problem types
+`src/metal/booster_batched_uq_metal.jl` supplies the experimental Metal problem types
 and methods. Closed-orbit Newton iterations, coordinate Jacobians, lane-local
 4×4 solves, tracking, implicit sensitivities, and likelihood reductions use
 persistent Float32 Metal arrays. Julia constructs the lattice, launches
 kernels, checks convergence, and returns results to the host. Metal-specific
 BeamTracking compatibility methods are isolated in
-`metal/booster_metal_device.jl`.
+`src/metal/booster_metal_device.jl`.
 
 ```julia
-include("metal/booster_batched_uq_metal.jl")
+include("src/metal/booster_batched_uq_metal.jl")
 using .BoosterBatchedUQMetal
 
 problem = metal_problem(prepared; chunksize=24)

@@ -2,7 +2,7 @@ using Test
 using LinearAlgebra
 using ChainRulesCore
 
-include(joinpath(@__DIR__, "..", "metal", "booster_batched_uq_metal.jl"))
+include(joinpath(@__DIR__, "..", "src", "metal", "booster_batched_uq_metal.jl"))
 using .BoosterBatchedUQMetal
 
 const MUQ = BoosterBatchedUQMetal.UQ

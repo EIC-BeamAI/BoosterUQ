@@ -1,7 +1,7 @@
 using Printf
 using Statistics
 
-include(joinpath(@__DIR__, "..", "booster_batched_uq.jl"))
+include(joinpath(@__DIR__, "..", "src", "booster_batched_uq.jl"))
 using .BoosterBatchedUQ
 
 const UQ = BoosterBatchedUQ

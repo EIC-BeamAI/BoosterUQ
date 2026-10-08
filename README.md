@@ -19,7 +19,7 @@ factor vectors against the same data.
 Prepare machine settings and observations once:
 
 ```julia
-include("booster_batched_uq.jl")
+include("src/booster_batched_uq.jl")
 using .BoosterBatchedUQ
 
 prepared = prepare_booster_batch(
@@ -81,7 +81,7 @@ cpu_problem = batch_problem(
     chunksize=8,
 )
 
-include("cuda/booster_batched_uq_cuda.jl")
+include("src/cuda/booster_batched_uq_cuda.jl")
 using .BoosterBatchedUQCUDA
 using CUDA
 

@@ -49,7 +49,7 @@ functions, normalizes fields by rigidity and element length, validates the BPM
 data, and caches the Gaussian likelihood constants.
 
 ```julia
-include("booster_batched_uq.jl")
+include("src/booster_batched_uq.jl")
 using .BoosterBatchedUQ
 
 operating_points = [
@@ -332,7 +332,7 @@ using CUDA
 CUDA.functional() || error("CUDA is unavailable")
 CUDA.allowscalar(false)
 
-include("cuda/booster_batched_uq_cuda.jl")
+include("src/cuda/booster_batched_uq_cuda.jl")
 using .BoosterBatchedUQCUDA
 const UQ = BoosterBatchedUQCUDA.UQ
 
@@ -343,7 +343,7 @@ prepared = UQ.prepare_booster_batch(
 )
 ```
 
-Avoid separately including `booster_batched_uq.jl` first in the same script.
+Avoid separately including `src/booster_batched_uq.jl` first in the same script.
 Until this source tree is packaged as a Julia package extension, doing so
 creates a second module instance with distinct Julia types.
 
@@ -504,7 +504,8 @@ bash benchmarks/run_cuda_inference_4gpu.sh \
 For CPU placement and execution-mode comparisons:
 
 ```sh
-bash run_cpu_inference_perlmutter.sh /path/to/julia/project cpu_inference_logs
+bash benchmarks/run_cpu_inference_perlmutter.sh \
+    /path/to/julia/project cpu_inference_logs
 ```
 
 The full CPU runner covers socket-local and whole-node configurations and can

@@ -1,7 +1,7 @@
 using LinearAlgebra, Printf, Statistics
 
 BLAS.set_num_threads(1)
-include(joinpath(@__DIR__, "..", "booster_batched_uq.jl"))
+include(joinpath(@__DIR__, "..", "src", "booster_batched_uq.jl"))
 using .BoosterBatchedUQ
 const UQ = BoosterBatchedUQ
 
@@ -80,7 +80,7 @@ function benchmark_threads()
     capacity = Threads.nthreads()
     println("CPU config=$CONFIG threads=$capacity Float64 width=$CHUNKSIZE pairs=$PAIRS")
     open(OUTPUT, "w") do io
-        println(io, "config,workers,active_workers,smt,experiments,chains,points,mode,sample,seconds,value_sum,gradient_norm,status")
+        println(io, "config,workers,active_workers,experiments,chains,points,mode,sample,seconds,value_sum,gradient_norm,status")
         for (nexperiments, nchains) in PAIRS
             active = min(nchains, capacity)
             setup_start = time_ns()
@@ -89,7 +89,7 @@ function benchmark_threads()
                 noise_std_mm=0.2)
             problems = make_chain_problems(prepared, active)
             setup_seconds = (time_ns() - setup_start) / 1e9
-            prefix = "$CONFIG,$capacity,$active,$(capacity > 128),$nexperiments,$nchains,$(nexperiments*nchains)"
+            prefix = "$CONFIG,$capacity,$active,$nexperiments,$nchains,$(nexperiments*nchains)"
             @printf(io, "%s,setup,0,%.9f,NaN,NaN,ok\n", prefix, setup_seconds)
             # Give the CPU Newton path a nominal closed orbit before perturbing
             # factors, matching inference chains initialized at their prior center.
@@ -156,7 +156,7 @@ function benchmark_process_rank()
     mkpath(dirname(OUTPUT))
     rank_path = process_rank_path()
     open(rank_path, "w") do io
-        println(io, "config,workers,active_workers,smt,rank,active,experiments,chains,points,mode,sample,seconds,value_sum,gradient_norm,status")
+        println(io, "config,workers,active_workers,rank,active,experiments,chains,points,mode,sample,seconds,value_sum,gradient_norm,status")
         for (pair_index, (nexperiments, nchains)) in enumerate(PAIRS)
             active_workers = min(nchains, NRANKS)
             active = RANK < active_workers
@@ -170,7 +170,7 @@ function benchmark_process_rank()
                 nothing
             end
             setup_seconds = (time_ns() - setup_start) / 1e9
-            prefix = "$CONFIG,$NRANKS,$active_workers,$(NRANKS > 128),$RANK,$active,$nexperiments,$nchains,$(nexperiments*nchains)"
+            prefix = "$CONFIG,$NRANKS,$active_workers,$RANK,$active,$nexperiments,$nchains,$(nexperiments*nchains)"
             @printf(io, "%s,setup,0,%.9f,NaN,NaN,ok\n", prefix, setup_seconds)
             active && evaluate(problem, ones(UQ.N_QUADS), Val(true))
             barrier("p$(pair_index)_nominal")
@@ -220,22 +220,22 @@ function summarize_process_ranks()
             for line in Iterators.drop(eachline(process_rank_path(rank)), 1)]
     groups = Dict{Tuple{String,String,String,String},Vector{Vector{SubString{String}}}}()
     for row in rows
-        key = (row[7], row[8], row[10], row[11])
+        key = (row[6], row[7], row[9], row[10])
         push!(get!(groups, key, Vector{Vector{SubString{String}}}()), row)
     end
     open(OUTPUT, "w") do io
-        println(io, "config,workers,active_workers,smt,experiments,chains,points,mode,sample,seconds,value_sum,gradient_norm,status")
+        println(io, "config,workers,active_workers,experiments,chains,points,mode,sample,seconds,value_sum,gradient_norm,status")
         for (_, group) in sort!(collect(groups); by=x ->
                 (parse(Int, x[1][1]), parse(Int, x[1][2]), x[1][3], parse(Int, x[1][4])))
             firstrow = first(group)
-            seconds = maximum(parse(Float64, row[12]) for row in group)
-            values = [parse(Float64, row[13]) for row in group if row[13] != "NaN"]
-            gradients = [parse(Float64, row[14]) for row in group if row[14] != "NaN"]
+            seconds = maximum(parse(Float64, row[11]) for row in group)
+            values = [parse(Float64, row[12]) for row in group if row[12] != "NaN"]
+            gradients = [parse(Float64, row[13]) for row in group if row[13] != "NaN"]
             value_sum = isempty(values) ? NaN : sum(values)
             gradient_norm = isempty(gradients) ? NaN : sqrt(sum(abs2, gradients))
-            @printf(io, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%.9f,%.17g,%.17g,ok\n",
-                firstrow[1], firstrow[2], firstrow[3], firstrow[4],
-                firstrow[7], firstrow[8], firstrow[9], firstrow[10], firstrow[11],
+            @printf(io, "%s,%s,%s,%s,%s,%s,%s,%s,%.9f,%.17g,%.17g,ok\n",
+                firstrow[1], firstrow[2], firstrow[3],
+                firstrow[6], firstrow[7], firstrow[8], firstrow[9], firstrow[10],
                 seconds, value_sum, gradient_norm)
         end
     end

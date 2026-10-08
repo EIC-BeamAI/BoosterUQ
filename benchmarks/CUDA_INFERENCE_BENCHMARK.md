@@ -3,7 +3,8 @@
 Run from `BoosterUQ` on the four-GPU machine:
 
 ```sh
-bash run_cuda_inference_4gpu.sh /path/to/julia/project /path/to/inference-benchmark-logs
+bash benchmarks/run_cuda_inference_4gpu.sh \
+    /path/to/julia/project /path/to/inference-benchmark-logs
 ```
 
 The project should be the same environment used for the passing CUDA validation. The runner launches one Julia process per GPU and covers 11 `(experiments, factor sets)` combinations from one to 32,768 flattened lanes. Each GPU gets a different group, including both `(128,256)` and `(256,128)` at 32K lanes. One factor set uses the single-vector `cuda_problem` dispatch; larger factor batches use `cuda_factor_problem`.
@@ -15,28 +16,20 @@ Each combination constructs a persistent CUDA workspace and warms both calls. Th
 
 Inputs are `CuArray` factor sets before the timer starts. Outputs remain on the GPU. The timer synchronizes the GPU before and after each call. Problem construction, compilation, input allocation, convergence checks, and result inspection are outside the timed region. `setup` and warmup times are recorded separately. Warm starts are enabled; each timed sample perturbs the factors. The benchmark checks finite values and gradients, convergence, tracking loss, and singular solves after each call.
 
-Results appear in `gpu0.csv` through `gpu3.csv` and the combined `inference_float64_width4.csv`, alongside per-GPU logs, device metadata, and `exit-codes.txt`. The script returns a nonzero exit code if any combination fails. Use `BOOSTER_INFERENCE_SAMPLES` to change the number of timed samples. For a single-GPU custom run, set `BOOSTER_INFERENCE_PAIRS` to comma-separated `experiments:factors` pairs and run `benchmark_cuda_inference.jl` directly. These timings cover one inference evaluation, rather than an entire sampling chain.
+Results appear in `gpu0.csv` through `gpu3.csv` and the combined `inference_float64_width4.csv`, alongside per-GPU logs, device metadata, and `exit-codes.txt`. The script returns a nonzero exit code if any combination fails. Use `BOOSTER_INFERENCE_SAMPLES` to change the number of timed samples. For a single-GPU custom run, set `BOOSTER_INFERENCE_PAIRS` to comma-separated `experiments:factors` pairs and run `benchmarks/benchmark_cuda_inference.jl` directly. These timings cover one inference evaluation, rather than an entire sampling chain.
 
 ## Nsight Systems
 
 After loading Perlmutter's `cudatoolkit` module so that `nsys` is on `PATH`, run:
 
 ```sh
-bash run_cuda_inference_nsys_4gpu.sh /path/to/julia/project /path/to/inference-nsys-logs
+bash benchmarks/run_cuda_inference_nsys_4gpu.sh \
+    /path/to/julia/project /path/to/inference-nsys-logs
 ```
 
 This single runner covers the same 11 combinations and both timing modes as the regular runner. It also captures one complete `value_and_gradient!` call per GPU, at `(experiments, factor sets)` of `(1,1)`, `(256,128)`, `(1,1024)`, and `(1024,1)`. Each process warms its workspace before that capture; all regular timed samples are outside the capture range. The four reports are `gpu0.nsys-rep` through `gpu3.nsys-rep`; `gpu*-stats.log` summarizes CUDA API calls, kernels, and memory operations. The combined timing table is `inference_float64_width4.csv`; `value_gradient_profile` rows identify the extra captured evaluations and should be excluded from timing summaries.
 
-The runner puts Julia's bundled `libcrypto.so.3` ahead of the system copy when launching Nsight. This addresses the Perlmutter loader failure in which `/usr/lib64/libcrypto.so.3` lacks the `OPENSSL_3.3.0` symbol required by Julia's `libssl.so.3`. It checks `using OpenSSL_jll` before launching the four jobs and records the dynamic-loader resolution in `openssl-loader.log`. Nsight now writes and imports reports in node-local scratch, then copies completed `.nsys-rep` files to the requested output directory.
-
-The October 7 capture completed all timings, but Nsight's importer failed to write reports directly to the shared `/global` path (`CreateFileException`, errno 524). The four `.qdstrm` files are valid intermediate capture streams. Recover these existing captures without rerunning the benchmark, using the same Nsight Systems version (`2026.2.1.210-262137639646v0`):
-
-```sh
-module load cudatoolkit
-bash recover_cuda_inference_nsys.sh /path/to/existing/cuda_val
-```
-
-The recovery script uses Nsight's `host-linux-x64/QdstrmImporter` in node-local scratch, copies the report into the log directory, and writes `gpu*-stats.log`. The `.qdstrm` files remain untouched. The loaded `nsys` installation is used to locate the importer; set `NSYS_ROOT` to the `Nsight_Systems` directory if it is elsewhere. Perlmutter's `nsys` does not provide an `import` subcommand.
+The runner addresses a Perlmutter/Julia OpenSSL conflict.
 
 ### Timing results
 

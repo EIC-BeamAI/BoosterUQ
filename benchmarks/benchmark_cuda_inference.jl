@@ -3,7 +3,7 @@ using CUDA, Dates, LinearAlgebra, Printf, Statistics
 CUDA.functional() || error("CUDA is not functional")
 CUDA.allowscalar(false)
 BLAS.set_num_threads(1)
-include(joinpath(@__DIR__, "..", "cuda", "booster_batched_uq_cuda.jl"))
+include(joinpath(@__DIR__, "..", "src", "cuda", "booster_batched_uq_cuda.jl"))
 using .BoosterBatchedUQCUDA
 const UQ = BoosterBatchedUQCUDA.UQ
 

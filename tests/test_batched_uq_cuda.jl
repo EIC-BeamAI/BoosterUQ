@@ -13,7 +13,7 @@ println("CUDA device: ", CUDA.device())
 println("CUDA_VISIBLE_DEVICES: ", get(ENV, "CUDA_VISIBLE_DEVICES", "unset"))
 CUDA.versioninfo()
 
-include(joinpath(@__DIR__, "..", "cuda", "booster_batched_uq_cuda.jl"))
+include(joinpath(@__DIR__, "..", "src", "cuda", "booster_batched_uq_cuda.jl"))
 using .BoosterBatchedUQCUDA
 
 const CUQ = BoosterBatchedUQCUDA.UQ
